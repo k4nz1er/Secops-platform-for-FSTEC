@@ -1,0 +1,105 @@
+{
+  "realm": "secops",
+  "enabled": true,
+  "displayName": "SecOps Platform",
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": false,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "accessTokenLifespan": 3600,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "roles": {
+    "realm": [
+      {
+        "name": "admin",
+        "description": "Администратор платформы SecOps"
+      },
+      {
+        "name": "specialist",
+        "description": "Специалист ИБ (отработка уязвимостей и IOC)"
+      },
+      {
+        "name": "viewer",
+        "description": "Просмотр реестров и отчётности"
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "secops-frontend",
+      "name": "SecOps Web UI",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "implicitFlowEnabled": false,
+      "rootUrl": "http://localhost",
+      "baseUrl": "/",
+      "redirectUris": [
+        "http://localhost/*",
+        "http://localhost:5173/*",
+        "http://127.0.0.1/*"
+      ],
+      "webOrigins": [
+        "http://localhost",
+        "http://localhost:5173",
+        "http://127.0.0.1",
+        "+"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      },
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "profile",
+        "roles",
+        "email"
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "admin",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Администратор",
+      "lastName": "ИБ",
+      "email": "admin@secops.local",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "admin",
+        "specialist"
+      ]
+    },
+    {
+      "username": "specialist",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Иван",
+      "lastName": "Петров",
+      "email": "specialist@secops.local",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "specialist",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "specialist"
+      ]
+    }
+  ]
+}

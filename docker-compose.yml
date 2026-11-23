@@ -1,0 +1,157 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: secops_postgres
+    restart: always
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASS}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    expose:
+      - "5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - secops_net
+
+  redis:
+    image: redis:7-alpine
+    container_name: secops_redis
+    restart: always
+    expose:
+      - "6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - secops_net
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: secops_rabbitmq
+    restart: always
+    env_file:
+      - .env
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBIT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBIT_PASS}
+    ports:
+      - "15672:15672"
+    expose:
+      - "5672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - secops_net
+
+  keycloak:
+    image: bitnamilegacy/keycloak:26.3.3
+    container_name: secops_keycloak
+    user: "0:0"
+    entrypoint: ["/opt/bitnami/keycloak/bin/kc.sh"]
+    command: ["start-dev", "--import-realm"]
+    environment:
+      - KC_BOOTSTRAP_ADMIN_USERNAME=admin
+      - KC_BOOTSTRAP_ADMIN_PASSWORD=admin
+      - KC_HTTP_ENABLED=true
+      - KC_PROXY_HEADERS=xforwarded
+      - KC_HOSTNAME_STRICT=false
+    volumes:
+      - ./infra/keycloak/realm-export.json:/opt/bitnami/keycloak/data/import/realm-export.json:ro
+    ports:
+      - "8080:8080"
+    networks:
+      - secops_net
+
+  backend:
+    image: secops_backend:latest
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: secops_backend
+    restart: always
+    env_file:
+      - .env
+    volumes:
+      - ./backend/app:/app/app
+    expose:
+      - "8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - secops_net
+
+  worker:
+    image: secops_worker:latest
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.worker
+    container_name: secops_ocr_worker
+    restart: always
+    env_file:
+      - .env
+    volumes:
+      - ./backend/app:/app/app
+    command: celery -A app.worker.tasks.celery_app worker --loglevel=info --concurrency=2
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - secops_net
+
+  frontend:
+    image: secops_frontend:latest
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: secops_frontend
+    restart: always
+    expose:
+      - "80"
+    depends_on:
+      - backend
+    networks:
+      - secops_net
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: secops_nginx
+    restart: always
+    ports:
+      - "80:80"
+    volumes:
+      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - frontend
+      - backend
+      - keycloak
+    networks:
+      - secops_net
+
+volumes:
+  pg_data:
+
+networks:
+  secops_net:
+    driver: bridge
