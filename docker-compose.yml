@@ -56,25 +56,6 @@ services:
     networks:
       - secops_net
 
-  keycloak:
-    image: bitnamilegacy/keycloak:26.3.3
-    container_name: secops_keycloak
-    user: "0:0"
-    entrypoint: ["/opt/bitnami/keycloak/bin/kc.sh"]
-    command: ["start-dev", "--import-realm"]
-    environment:
-      - KC_BOOTSTRAP_ADMIN_USERNAME=admin
-      - KC_BOOTSTRAP_ADMIN_PASSWORD=admin
-      - KC_HTTP_ENABLED=true
-      - KC_PROXY_HEADERS=xforwarded
-      - KC_HOSTNAME_STRICT=false
-    volumes:
-      - ./infra/keycloak/realm-export.json:/opt/bitnami/keycloak/data/import/realm-export.json:ro
-    ports:
-      - "8080:8080"
-    networks:
-      - secops_net
-
   backend:
     image: secops_backend:latest
     build:
@@ -145,7 +126,6 @@ services:
     depends_on:
       - frontend
       - backend
-      - keycloak
     networks:
       - secops_net
 

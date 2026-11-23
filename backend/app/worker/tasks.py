@@ -56,19 +56,14 @@ def process_incoming_document(
                         or (", ".join(local_cves) if local_cves else None)
                         or (", ".join(cve_list) if len(bdu_list) == 1 and cve_list else None)
                     )
-                    description = (
-                        bdu_info.get("description")
-                        or local_context
-                        or f"Уязвимость {bdu_id} из документа {source_doc}"
-                    )
 
                     vuln = Vulnerability(
                         bdu=bdu_id,
                         cve=cve_value,
                         source_document=source_doc,
-                        affected_software=bdu_info.get("affected_software"),
-                        recommendations=bdu_info.get("recommendations"),
-                        description=description,
+                        affected_software=None,
+                        recommendations=None,
+                        description="",
                         action_taken="",
                         status=VulnStatus.IN_PROGRESS.value,
                     )
@@ -89,12 +84,11 @@ def process_incoming_document(
                     )
                     vulns_created += 1
             elif mode == "bdu" or not iocs_list:
-                snippet = raw_text[:500].strip() if raw_text else f"Входящий документ {source_doc}"
                 vuln = Vulnerability(
                     bdu="—",
                     cve=", ".join(cve_list) if cve_list else None,
                     source_document=source_doc,
-                    description=snippet,
+                    description="",
                     action_taken="",
                     status=VulnStatus.IN_PROGRESS.value,
                 )
@@ -135,7 +129,7 @@ def process_incoming_document(
                     value=item["value"],
                     source=source_doc,
                     reputation="Вредоносный",
-                    status="Активен",
+                    status="В работе",
                 )
                 db.add(ioc)
                 iocs_created += 1

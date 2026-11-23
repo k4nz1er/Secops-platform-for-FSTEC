@@ -16,8 +16,10 @@ import {
   DeleteOutlined,
   DownloadOutlined,
   ReloadOutlined,
+  SafetyCertificateOutlined,
   SearchOutlined,
 } from "@ant-design/icons";
+import axios from "axios";
 import dayjs from "dayjs";
 import apiClient from "../api/client";
 
@@ -30,7 +32,7 @@ interface IocItem {
   source: string;
   reputation: string;
   status: string;
-  created_at: string;
+  created_at?: string | null;
 }
 
 const IOC_TYPES = [
@@ -43,6 +45,8 @@ const IOC_TYPES = [
 ];
 
 const IOC_STATUSES = [
+  { value: "В работе", label: "В работе" },
+  { value: "Выполнено", label: "Выполнено" },
   { value: "Активен", label: "Активен" },
   { value: "Заблокирован", label: "Заблокирован" },
   { value: "Ложное срабатывание", label: "Ложное срабатывание" },
@@ -60,6 +64,7 @@ const TYPE_COLORS: Record<string, string> = {
 export default function IocRegistry() {
   const [items, setItems] = useState<IocItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [exportingKata, setExportingKata] = useState(false);
   const [typeFilter, setTypeFilter] = useState<string | undefined>();
   const [statusFilter, setStatusFilter] = useState<string | undefined>();
   const [searchQuery, setSearchQuery] = useState("");
@@ -130,6 +135,58 @@ export default function IocRegistry() {
     }
   };
 
+  const handleExportKata = async () => {
+    setExportingKata(true);
+    try {
+      const params: Record<string, string> = {};
+      if (typeFilter) params.ioc_type = typeFilter;
+
+      const response = await apiClient.post("/iocs/export/kata", null, {
+        params,
+        responseType: "blob",
+      });
+
+      const disposition = response.headers["content-disposition"] as string | undefined;
+      const match = disposition?.match(/filename="?([^"]+)"?/);
+      const filename = match?.[1] || "kata_iocs.zip";
+      const exportedCount = response.headers["x-exported-count"];
+
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      message.success(
+        exportedCount
+          ? `Выгружено для KATA: ${exportedCount} шт. Статус изменён на «Выполнено».`
+          : "Правила для KATA выгружены. Статус изменён на «Выполнено»."
+      );
+      await fetchIocs();
+    } catch (err) {
+      let detail = "Ошибка при экспорте правил для KATA";
+      if (axios.isAxiosError(err) && err.response?.data instanceof Blob) {
+        try {
+          const text = await err.response.data.text();
+          const parsed = JSON.parse(text);
+          if (parsed?.detail) detail = parsed.detail;
+        } catch {
+          // оставляем текст по умолчанию
+        }
+      }
+      if (axios.isAxiosError(err) && err.response?.status === 404) {
+        message.info(detail);
+      } else {
+        message.error(detail);
+      }
+    } finally {
+      setExportingKata(false);
+    }
+  };
+
   const columns: ColumnsType<IocItem> = [
     {
       title: "Тип",
@@ -152,7 +209,7 @@ export default function IocRegistry() {
       title: "Источник (письмо)",
       dataIndex: "source",
       key: "source",
-      width: 220,
+      width: 240,
     },
     {
       title: "Репутация",
@@ -183,7 +240,8 @@ export default function IocRegistry() {
       dataIndex: "created_at",
       key: "created_at",
       width: 150,
-      render: (val: string) => dayjs(val).format("DD.MM.YYYY HH:mm"),
+      render: (val?: string | null) =>
+        val ? dayjs(val).format("DD.MM.YYYY HH:mm") : "—",
     },
     {
       title: "",
@@ -235,9 +293,24 @@ export default function IocRegistry() {
           <Button icon={<ReloadOutlined />} onClick={fetchIocs} loading={loading}>
             Обновить
           </Button>
-          <Button type="primary" icon={<DownloadOutlined />} onClick={handleExport}>
-            Экспорт блоклиста
+          <Button icon={<DownloadOutlined />} onClick={handleExport}>
+            Блоклист (.txt)
           </Button>
+          <Popconfirm
+            title="Выгрузка в KATA (OpenIOC)"
+            description="Выгрузить все индикаторы «В работе» в .ioc и перевести их в статус «Выполнено»?"
+            onConfirm={handleExportKata}
+            okText="Выгрузить"
+            cancelText="Отмена"
+          >
+            <Button
+              type="primary"
+              icon={<SafetyCertificateOutlined />}
+              loading={exportingKata}
+            >
+              Экспорт в KATA
+            </Button>
+          </Popconfirm>
         </Space>
       }
     >

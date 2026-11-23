@@ -7,10 +7,90 @@ class EntityParser:
     BDU_PATTERN = re.compile(r"\b(?:BDU|БДУ)[:\-\s]*(\d{4}-\d{4,6})\b", re.IGNORECASE)
     CVE_PATTERN = re.compile(r"\bCVE-\d{4}-\d{4,7}\b", re.IGNORECASE)
 
+    RU_MONTHS: Dict[str, str] = {
+        "января": "01",
+        "февраля": "02",
+        "марта": "03",
+        "апреля": "04",
+        "мая": "05",
+        "июня": "06",
+        "июля": "07",
+        "августа": "08",
+        "сентября": "09",
+        "октября": "10",
+        "ноября": "11",
+        "декабря": "12",
+    }
+
+    NUMERIC_DATE_PATTERN = re.compile(r"\b(\d{1,2}[.\-/]\d{1,2}[.\-/]\d{2,4})\b")
+    TEXT_DATE_PATTERN = re.compile(
+        r"[«\"„']?\s*(\d{1,2})\s*[»\"“']?\s+"
+        r"(января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)\s+"
+        r"(\d{4})",
+        re.IGNORECASE,
+    )
+
+    SLASH_NUM_PATTERN = re.compile(
+        r"\b(\d{1,5}\s*/\s*\d{1,5}\s*/\s*[А-ЯA-Z0-9\-]{1,12})\b",
+        re.IGNORECASE,
+    )
+
+    DATE_THEN_SLASH_WITH_SIGN = re.compile(
+        r"(?:от\s*)?"
+        r"(\d{1,2}[.\-/]\d{1,2}[.\-/]\d{2,4})"
+        r"(?:\s*(?:г\.?|года))?"
+        r"[\s,;:\-_]*"
+        r"(?:№|N[oо°]?\.?)[\s_:\-]*"
+        r"([А-ЯA-Z0-9]+\s*/\s*[А-ЯA-Z0-9/\-]{2,25})",
+        re.IGNORECASE,
+    )
+
+    TEXT_DATE_THEN_SLASH_WITH_SIGN = re.compile(
+        r"(?:от\s*)?"
+        r"[«\"„']?\s*(\d{1,2})\s*[»\"“']?\s+"
+        r"(января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)\s+"
+        r"(\d{4})(?:\s*(?:г\.?|года))?"
+        r"[\s,;:\-_]*"
+        r"(?:№|N[oо°]?\.?)[\s_:\-]*"
+        r"([А-ЯA-Z0-9]+\s*/\s*[А-ЯA-Z0-9/\-]{2,25})",
+        re.IGNORECASE,
+    )
+
+    SLASH_THEN_DATE = re.compile(
+        r"(?<!На\s)(?:№|N[oо°]?\.?)[\s_:\-]*"
+        r"([А-ЯA-Z0-9]+\s*/\s*[А-ЯA-Z0-9/\-]{2,25})"
+        r"[\s,;\-_]*от\s*"
+        r"(\d{1,2}[.\-/]\d{1,2}[.\-/]\d{2,4})",
+        re.IGNORECASE,
+    )
+
+    DATE_THEN_PLAIN_NUM = re.compile(
+        r"(?:от\s*)?"
+        r"(\d{1,2}[.\-/]\d{1,2}[.\-/]\d{2,4})"
+        r"(?:\s*(?:г\.?|года))?"
+        r"[\s,;:\-_]*"
+        r"(?:№|N[oо°]?\.?)[\s_:\-]*"
+        r"((?=[А-ЯA-Z0-9/\-]*\d)[А-ЯA-Z0-9][А-ЯA-Z0-9/\-]{1,30})",
+        re.IGNORECASE,
+    )
+
+    NUM_THEN_DATE_PLAIN = re.compile(
+        r"(?<!На\s)(?:№|N[oо°]?\.?)[\s_:\-]*"
+        r"((?=[А-ЯA-Z0-9/\-]*\d)[А-ЯA-Z0-9][А-ЯA-Z0-9/\-]{1,30})"
+        r"[\s,;\-_]*от\s*"
+        r"(\d{1,2}[.\-/]\d{1,2}[.\-/]\d{2,4})",
+        re.IGNORECASE,
+    )
+
     DOC_NUMBER_PATTERN = re.compile(
-        r"(?:(?:исх\.|вх\.|письм[оа]|бюллетен[ья])\s*)?"
-        r"(?:№|\bN[oо°]\.?)\s*"
-        r"((?=[А-ЯA-Z0-9/\-\.]*\d)[А-ЯA-Z0-9][А-ЯA-Z0-9/\-]{2,35})",
+        r"(?<!На\s)(?:(?:исх\.|вх\.|письм[оа]|бюллетен[ья])\s*)?"
+        r"(?:№|\bN[oо°]\.?)[\s_:\-]*"
+        r"((?=[А-ЯA-Z0-9/\-]*\d)[А-ЯA-Z0-9][А-ЯA-Z0-9/\-]{2,35})",
+        re.IGNORECASE,
+    )
+
+    LEGAL_ACT_CONTEXT = re.compile(
+        r"(?:указ\w*|приказ\w*|закон\w*|постановлен\w*|распоряжен\w*|\bфз\b|протокол\w*|на\s+№)",
         re.IGNORECASE,
     )
 
@@ -79,12 +159,119 @@ class EntityParser:
         match = re.match(r"^https?://([^/:?#]+)", url, flags=re.IGNORECASE)
         return match.group(1).lower() if match else ""
 
-    def extract_document_number(self, text: str, fallback_filename: str) -> str:
-        match = self.DOC_NUMBER_PATTERN.search(text[:2500])
-        if match:
-            cleaned = match.group(1).strip(".,;:-")
+    def _normalize_numeric_date(self, raw_date: str) -> Optional[str]:
+        parts = re.split(r"[.\-/]", raw_date.strip())
+        if len(parts) != 3:
+            return None
+        try:
+            day, month = int(parts[0]), int(parts[1])
+            year = int(parts[2]) if len(parts[2]) == 4 else 2000 + int(parts[2])
+        except ValueError:
+            return None
+        if not (1 <= day <= 31 and 1 <= month <= 12 and 2000 <= year <= 2100):
+            return None
+        return f"{day:02d}.{month:02d}.{year}"
+
+    def _extract_first_date(self, snippet: str) -> Optional[str]:
+        for m in self.NUMERIC_DATE_PATTERN.finditer(snippet):
+            norm = self._normalize_numeric_date(m.group(1))
+            if norm:
+                return norm
+        for m in self.TEXT_DATE_PATTERN.finditer(snippet):
+            day_str, month_word, year_str = m.groups()
+            month_num = self.RU_MONTHS.get(month_word.lower())
+            day = int(day_str)
+            if month_num and 1 <= day <= 31:
+                return f"{day:02d}.{month_num}.{year_str}"
+        return None
+
+    def _clean_doc_number(self, raw_num: str) -> Optional[str]:
+        cleaned = re.sub(r"\s*/\s*", "/", raw_num).strip(".,;:-_ ")
+        if not cleaned or not re.search(r"\d", cleaned):
+            return None
+        return cleaned
+
+    def _looks_like_slash_date(self, value: str) -> bool:
+        parts = value.split("/")
+        if len(parts) != 3:
+            return False
+        try:
+            p1, p2, p3 = int(parts[0]), int(parts[1]), int(parts[2])
+            return 1 <= p1 <= 31 and 1 <= p2 <= 12 and 1990 <= p3 <= 2100
+        except ValueError:
+            return False
+
+    def _is_legal_act_reference(self, text: str, start_pos: int) -> bool:
+        prefix = text[max(0, start_pos - 80):start_pos]
+        return bool(self.LEGAL_ACT_CONTEXT.search(prefix))
+
+    def _extract_from_snippet(self, snippet: str) -> Optional[str]:
+        header = (snippet or "")[:2500]
+        letterhead = header[:900]
+
+        for m in self.DATE_THEN_SLASH_WITH_SIGN.finditer(header):
+            norm_date = self._normalize_numeric_date(m.group(1))
+            clean_num = self._clean_doc_number(m.group(2))
+            if norm_date and clean_num and not self._looks_like_slash_date(clean_num):
+                return f"№ {clean_num} от {norm_date}"
+
+        for m in self.TEXT_DATE_THEN_SLASH_WITH_SIGN.finditer(header):
+            day_str, month_word, year_str, raw_num = m.groups()
+            month_num = self.RU_MONTHS.get(month_word.lower())
+            clean_num = self._clean_doc_number(raw_num)
+            day = int(day_str)
+            if month_num and clean_num and 1 <= day <= 31 and not self._looks_like_slash_date(clean_num):
+                return f"№ {clean_num} от {day:02d}.{month_num}.{year_str}"
+
+        for m in self.SLASH_NUM_PATTERN.finditer(letterhead):
+            clean_num = self._clean_doc_number(m.group(1))
+            if clean_num and not self._looks_like_slash_date(clean_num):
+                found_date = self._extract_first_date(letterhead)
+                if found_date:
+                    return f"№ {clean_num} от {found_date}"
+                return f"№ {clean_num}"
+
+        for m in self.SLASH_THEN_DATE.finditer(header):
+            clean_num = self._clean_doc_number(m.group(1))
+            norm_date = self._normalize_numeric_date(m.group(2))
+            if norm_date and clean_num and not self._looks_like_slash_date(clean_num):
+                return f"№ {clean_num} от {norm_date}"
+
+        for m in self.DATE_THEN_PLAIN_NUM.finditer(header):
+            if self._is_legal_act_reference(header, m.start()):
+                continue
+            norm_date = self._normalize_numeric_date(m.group(1))
+            clean_num = self._clean_doc_number(m.group(2))
+            if norm_date and clean_num:
+                return f"№ {clean_num} от {norm_date}"
+
+        for m in self.NUM_THEN_DATE_PLAIN.finditer(header):
+            if self._is_legal_act_reference(header, m.start()):
+                continue
+            clean_num = self._clean_doc_number(m.group(1))
+            norm_date = self._normalize_numeric_date(m.group(2))
+            if norm_date and clean_num:
+                return f"№ {clean_num} от {norm_date}"
+
+        for m in self.DOC_NUMBER_PATTERN.finditer(letterhead):
+            if self._is_legal_act_reference(letterhead, m.start()):
+                continue
+            cleaned = self._clean_doc_number(m.group(1))
             if cleaned:
                 return f"№ {cleaned}"
+
+        return None
+
+    def extract_document_number(self, text: str, fallback_filename: str) -> str:
+        from_text = self._extract_from_snippet(text)
+        if from_text:
+            return from_text
+
+        filename_stem = re.sub(r"\.[a-zA-Z0-9]{2,5}$", "", fallback_filename or "").strip()
+        from_filename = self._extract_from_snippet(filename_stem)
+        if from_filename:
+            return from_filename
+
         return fallback_filename
 
     def extract_bdu(self, text: str) -> List[str]:

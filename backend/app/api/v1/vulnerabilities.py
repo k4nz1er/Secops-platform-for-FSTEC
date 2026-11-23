@@ -4,12 +4,50 @@ from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.security import get_current_user
-from app.models.domain import Vulnerability, Task, User, ActionHistory, VulnStatus
+from app.models.domain import IOC, Vulnerability, Task, User, ActionHistory, VulnStatus
 
 router = APIRouter(prefix="/api/v1/vulnerabilities", tags=["Vulnerabilities"])
+
+# ==============================================================================
+# НАСТРОЙКИ ОТЧЁТА (РЕДАКТИРОВАТЬ ЗДЕСЬ)
+# ==============================================================================
+
+# Ответственный по умолчанию для строк БДУ (если в задаче не назначен вручную)
+DEFAULT_BDU_ASSIGNEE = ""
+
+# 4 стандартных пункта, которые добавляются в отчёт для каждого письма с IOC
+IOC_REPORT_ITEMS = [
+    {
+        "bdu": "IOC",
+        "description": "1",
+        "action_taken": "1",
+        "assignee": "Ответственный 1",
+    },
+    {
+        "bdu": "IOC",
+        "description": "2",
+        "action_taken": "2",
+        "assignee": "Ответственный 2",
+    },
+    {
+        "bdu": "IOC",
+        "description": "3",
+        "action_taken": "3",
+        "assignee": "Ответственный 3",
+    },
+    {
+        "bdu": "IOC",
+        "description": "4",
+        "action_taken": "4",
+        "assignee": "Ответственный 4",
+    },
+]
+
+# ==============================================================================
 
 
 class VulnerabilityUpdateRequest(BaseModel):
@@ -87,6 +125,41 @@ def export_vulnerabilities_report(
 
     rows = query.all()
 
+    # Уникальные письма из реестра IOC
+    if only_ready:
+        active_ioc_sources = {
+            row[0]
+            for row in db.query(IOC.source)
+            .filter(
+                IOC.source.isnot(None),
+                IOC.source != "",
+                IOC.status.in_(["В работе", "Активен"]),
+            )
+            .distinct()
+            .all()
+        }
+        ioc_rows = (
+            db.query(IOC.source)
+            .filter(
+                IOC.source.isnot(None),
+                IOC.source != "",
+                IOC.status.in_(["Выполнено", "Заблокирован"]),
+            )
+            .group_by(IOC.source)
+            .order_by(func.min(IOC.id).asc())
+            .all()
+        )
+        ioc_sources = [row[0] for row in ioc_rows if row[0] not in active_ioc_sources]
+    else:
+        ioc_rows = (
+            db.query(IOC.source)
+            .filter(IOC.source.isnot(None), IOC.source != "")
+            .group_by(IOC.source)
+            .order_by(func.min(IOC.id).asc())
+            .all()
+        )
+        ioc_sources = [row[0] for row in ioc_rows]
+
     output = io.StringIO()
     writer = csv.writer(output, delimiter=";")
     writer.writerow([
@@ -98,15 +171,29 @@ def export_vulnerabilities_report(
         "Кто ответственный",
     ])
 
-    for idx, (vuln, assignee_name) in enumerate(rows, start=1):
+    idx = 1
+    for vuln, assignee_name in rows:
         writer.writerow([
             vuln.source_document or "",
             idx,
             vuln.bdu or "—",
             vuln.description or "",
             vuln.action_taken or "",
-            assignee_name or "",
+            assignee_name or DEFAULT_BDU_ASSIGNEE,
         ])
+        idx += 1
+
+    for source_doc in ioc_sources:
+        for item in IOC_REPORT_ITEMS:
+            writer.writerow([
+                source_doc,
+                idx,
+                item["bdu"],
+                item["description"],
+                item["action_taken"],
+                item["assignee"],
+            ])
+            idx += 1
 
     csv_bytes = output.getvalue().encode("utf-8-sig")
     headers = {
