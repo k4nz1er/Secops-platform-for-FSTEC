@@ -61,9 +61,7 @@ def process_incoming_document(
                         bdu=bdu_id,
                         cve=cve_value,
                         source_document=source_doc,
-                        affected_software=None,
-                        recommendations=None,
-                        description="",
+                        description=bdu_info.get("description") or "",
                         action_taken="",
                         status=VulnStatus.IN_PROGRESS.value,
                     )
@@ -85,7 +83,7 @@ def process_incoming_document(
                     vulns_created += 1
             elif mode == "bdu" or not iocs_list:
                 vuln = Vulnerability(
-                    bdu="—",
+                    bdu="-",
                     cve=", ".join(cve_list) if cve_list else None,
                     source_document=source_doc,
                     description="",
