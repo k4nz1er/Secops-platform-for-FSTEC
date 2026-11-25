@@ -11,6 +11,7 @@ import {
   Space,
   Table,
   Tag,
+  Tooltip,
   Typography,
   message,
 } from "antd";
@@ -22,6 +23,7 @@ import {
   FileTextOutlined,
   ReloadOutlined,
   SearchOutlined,
+  StopOutlined,
 } from "@ant-design/icons";
 import apiClient from "../api/client";
 
@@ -60,6 +62,12 @@ const VULN_STATUSES = [
   { value: "Выполнена", label: "Выполнена" },
   { value: "Закрыта", label: "Закрыта" },
 ];
+
+const NOT_RELEVANT_TEXT = "Не актуально (ПО не используется)";
+const NOT_RELEVANT_RE =
+  /(не\s*актуал|не\s*примен|не\s*использует|не\s*установл|отсутств|нет\s+по|(?:^|\s)н\/а(?:$|\s|[.,;]))/i;
+
+const isNotRelevant = (actionTaken: string) => NOT_RELEVANT_RE.test(actionTaken || "");
 
 const TOTAL_COLUMNS = 7;
 
@@ -157,6 +165,24 @@ export default function Vulnerabilities() {
     }
   };
 
+  const handleMarkNotRelevant = async (record: VulnerabilityItem) => {
+    try {
+      const response = await apiClient.patch<VulnerabilityItem>(
+        `/vulnerabilities/${record.id}`,
+        {
+          status: "Выполнена",
+          action_taken: NOT_RELEVANT_TEXT,
+        }
+      );
+      setItems((prev) =>
+        prev.map((item) => (item.id === record.id ? response.data : item))
+      );
+      message.success(`${record.bdu || "Запись"} помечена как не актуальная`);
+    } catch {
+      message.error("Ошибка при обновлении записи");
+    }
+  };
+
   const openEditModal = (record: VulnerabilityItem) => {
     setEditingItem(record);
     form.setFieldsValue({
@@ -241,9 +267,9 @@ export default function Vulnerabilities() {
               colSpan: TOTAL_COLUMNS,
               style: {
                 textAlign: "left",
-                background: "rgba(0, 240, 255, 0.08)",
-                borderTop: "2px solid rgba(252, 238, 10, 0.7)",
-                borderBottom: "1px solid rgba(0, 240, 255, 0.35)",
+                background: "rgba(230, 25, 46, 0.08)",
+                borderTop: "2px solid #e6192e",
+                borderBottom: "1px solid rgba(230, 25, 46, 0.3)",
                 padding: "9px 14px",
               },
             }
@@ -261,12 +287,12 @@ export default function Vulnerabilities() {
               }}
             >
               <Space size={10}>
-                <FileTextOutlined style={{ color: "#fcee0a", fontSize: 15 }} />
+                <FileTextOutlined style={{ color: "#e6192e", fontSize: 15 }} />
                 <Text
                   strong
                   style={{
-                    color: "#fcee0a",
-                    letterSpacing: "0.04em",
+                    color: "#f0f2f5",
+                    letterSpacing: "0.05em",
                     fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
                   }}
                 >
@@ -276,9 +302,9 @@ export default function Vulnerabilities() {
               <Tag
                 style={{
                   marginRight: 0,
-                  background: "rgba(0, 240, 255, 0.12)",
-                  borderColor: "#00f0ff",
-                  color: "#00f0ff",
+                  background: "rgba(230, 25, 46, 0.14)",
+                  borderColor: "#e6192e",
+                  color: "#f0f2f5",
                 }}
               >
                 ЗАПИСЕЙ: {record.count}
@@ -298,10 +324,12 @@ export default function Vulnerabilities() {
         if (record.isGroupHeader) return null;
         return (
           <Tag
-            color="blue"
             style={{
               fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
               marginRight: 0,
+              background: "rgba(255, 255, 255, 0.05)",
+              borderColor: "#3a3e4d",
+              color: "#f0f2f5",
             }}
           >
             {record.bdu || "—"}
@@ -326,10 +354,12 @@ export default function Vulnerabilities() {
             {cveList.map((cve) => (
               <Tag
                 key={cve}
-                color="volcano"
                 style={{
                   fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
                   marginRight: 0,
+                  background: "rgba(230, 25, 46, 0.12)",
+                  borderColor: "rgba(230, 25, 46, 0.5)",
+                  color: "#ff6b78",
                 }}
               >
                 {cve}
@@ -369,15 +399,32 @@ export default function Vulnerabilities() {
       onCell: hideIfGroupHeader,
       render: (_val, record) => {
         if (record.isGroupHeader) return null;
-        return record.action_taken ? (
-          <Paragraph
-            ellipsis={{ rows: 3, expandable: true, symbol: "развернуть" }}
-            style={{ marginBottom: 0 }}
-          >
-            {record.action_taken}
-          </Paragraph>
-        ) : (
-          <Text type="secondary">Не заполнено</Text>
+        if (!record.action_taken) {
+          return <Text type="secondary">Не заполнено</Text>;
+        }
+        const markedNotRel = isNotRelevant(record.action_taken);
+        return (
+          <Space direction="vertical" size={4} style={{ width: "100%" }}>
+            {markedNotRel && (
+              <Tag
+                icon={<StopOutlined />}
+                style={{
+                  marginRight: 0,
+                  background: "rgba(107, 114, 128, 0.16)",
+                  borderColor: "#6b7280",
+                  color: "#c2c7d1",
+                }}
+              >
+                Не актуально
+              </Tag>
+            )}
+            <Paragraph
+              ellipsis={{ rows: 3, expandable: true, symbol: "развернуть" }}
+              style={{ marginBottom: 0 }}
+            >
+              {record.action_taken}
+            </Paragraph>
+          </Space>
         );
       },
     },
@@ -402,19 +449,39 @@ export default function Vulnerabilities() {
     {
       title: "",
       key: "actions",
-      width: 84,
+      width: 112,
       align: "right",
       onCell: hideIfGroupHeader,
       render: (_val, record) => {
         if (record.isGroupHeader) return null;
+        const alreadyNotRel = isNotRelevant(record.action_taken);
         return (
           <Space size={2}>
-            <Button
-              type="text"
-              size="small"
-              icon={<EditOutlined />}
-              onClick={() => openEditModal(record)}
-            />
+            <Tooltip
+              title={
+                alreadyNotRel
+                  ? "Отмечено как не актуальная"
+                  : "Пометить как не актуальную"
+              }
+            >
+              <Button
+                type="text"
+                size="small"
+                icon={<StopOutlined />}
+                style={{
+                  color: alreadyNotRel ? "#e6192e" : "rgba(255, 255, 255, 0.5)",
+                }}
+                onClick={() => handleMarkNotRelevant(record)}
+              />
+            </Tooltip>
+            <Tooltip title="Редактировать">
+              <Button
+                type="text"
+                size="small"
+                icon={<EditOutlined />}
+                onClick={() => openEditModal(record)}
+              />
+            </Tooltip>
             <Popconfirm
               title="Удалить запись и связанные задачи?"
               onConfirm={() => handleDelete(record.id)}
@@ -482,7 +549,7 @@ export default function Vulnerabilities() {
         columns={columns}
         dataSource={tableRows}
         loading={loading}
-        scroll={{ x: 960 }}
+        scroll={{ x: 980 }}
         pagination={{ pageSize: 50, showSizeChanger: true }}
         locale={{ emptyText: "Записи об уязвимостях не найдены" }}
       />
@@ -515,7 +582,28 @@ export default function Vulnerabilities() {
           <Form.Item name="description" label="Описание">
             <TextArea rows={4} />
           </Form.Item>
-          <Form.Item name="action_taken" label="Что сделано">
+          <Form.Item
+            name="action_taken"
+            label={
+              <Space style={{ width: "100%", justifyContent: "space-between" }}>
+                <span>Что сделано</span>
+                <Button
+                  type="link"
+                  size="small"
+                  icon={<StopOutlined />}
+                  style={{ padding: 0, color: "#e6192e" }}
+                  onClick={() =>
+                    form.setFieldsValue({
+                      action_taken: NOT_RELEVANT_TEXT,
+                      status: "Выполнена",
+                    })
+                  }
+                >
+                  Пометить «Не актуально»
+                </Button>
+              </Space>
+            }
+          >
             <TextArea rows={3} placeholder="Принятые меры по устранению..." />
           </Form.Item>
         </Form>

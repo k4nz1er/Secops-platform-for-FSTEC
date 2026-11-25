@@ -8,12 +8,14 @@ import {
   useNavigate,
 } from "react-router-dom";
 import {
+  Button,
   ConfigProvider,
   Layout,
   Menu,
   Space,
   Spin,
   Tag,
+  Tooltip,
   Typography,
   theme,
 } from "antd";
@@ -22,6 +24,8 @@ import ruRU from "antd/locale/ru_RU";
 import {
   BugOutlined,
   DashboardOutlined,
+  MenuFoldOutlined,
+  MenuUnfoldOutlined,
   SafetyCertificateOutlined,
   UploadOutlined,
   UserOutlined,
@@ -32,9 +36,10 @@ import Vulnerabilities from "./pages/Vulnerabilities";
 import IocRegistry from "./pages/IocRegistry";
 import DocumentUpload from "./pages/DocumentUpload";
 
-const BRAND_LOGO = "/opt/secops-platform/frontend/public/NPP_Pulsars.png";          // файл из /opt/secops-platform/frontend/public/
+const BRAND_LOGO = "/NPP_Pulsars.png"; // файл из frontend/public/
 const BRAND_TITLE = "SecOpsCenter";
-const BRAND_SUBTITLE = "";
+const BRAND_SUBTITLE = "SEC // OPS";
+const SIDER_STORAGE_KEY = "secops_sider_collapsed";
 
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
@@ -42,6 +47,26 @@ const { Text } = Typography;
 function AppLayout() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [logoError, setLogoError] = useState(false);
+  const [collapsed, setCollapsed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(SIDER_STORAGE_KEY) === "true";
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleCollapsed = () => {
+    setCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem(SIDER_STORAGE_KEY, String(next));
+      } catch {
+        // ignore storage errors
+      }
+      return next;
+    });
+  };
 
   const username =
     (keycloak.tokenParsed?.preferred_username as string) || "Специалист ИБ";
@@ -71,51 +96,70 @@ function AppLayout() {
 
   return (
     <Layout style={{ minHeight: "100vh" }}>
-      <Sider width={248} className="cp-sider">
-        <div className="cp-brand">
-          <img
-            src={BRAND_LOGO}
-            alt="logo"
-            onError={(e) => {
-              e.currentTarget.style.display = "none";
-            }}
-            style={{
-              width: 36,
-              height: 36,
-              objectFit: "contain",
-              flexShrink: 0,
-            }}
-          />
-          <div style={{ overflow: "hidden" }}>
-            <Text
-              strong
-              ellipsis
+      <Sider
+        collapsible
+        collapsed={collapsed}
+        trigger={null}
+        width={244}
+        collapsedWidth={68}
+        className="ar-sider"
+      >
+        <div
+          className="ar-brand"
+          onClick={() => navigate("/")}
+          style={{ cursor: "pointer" }}
+          title={BRAND_TITLE}
+        >
+          {!logoError ? (
+            <img
+              src={BRAND_LOGO}
+              alt="logo"
+              onError={() => setLogoError(true)}
               style={{
-                color: "#fcee0a",
-                fontSize: 15,
-                letterSpacing: "0.06em",
-                display: "block",
-                lineHeight: 1.2,
-                fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+                width: 34,
+                height: 34,
+                objectFit: "contain",
+                flexShrink: 0,
               }}
-            >
-              {BRAND_TITLE}
-            </Text>
-            {BRAND_SUBTITLE && (
+            />
+          ) : (
+            <div className="ar-brand-fallback">SC</div>
+          )}
+
+          {!collapsed && (
+            <div style={{ overflow: "hidden", whiteSpace: "nowrap" }}>
               <Text
+                strong
                 ellipsis
                 style={{
-                  color: "#00f0ff",
-                  fontSize: 11,
-                  letterSpacing: "0.04em",
+                  color: "#f0f2f5",
+                  fontSize: 15,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
                   display: "block",
+                  lineHeight: 1.2,
                   fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
                 }}
               >
-                {BRAND_SUBTITLE}
+                {BRAND_TITLE}
               </Text>
-            )}
-          </div>
+              {BRAND_SUBTITLE && (
+                <Text
+                  ellipsis
+                  style={{
+                    color: "#e6192e",
+                    fontSize: 10.5,
+                    letterSpacing: "0.14em",
+                    fontWeight: 700,
+                    display: "block",
+                    fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+                  }}
+                >
+                  {BRAND_SUBTITLE}
+                </Text>
+              )}
+            </div>
+          )}
         </div>
 
         <Menu
@@ -130,36 +174,48 @@ function AppLayout() {
 
       <Layout>
         <Header
-          className="cp-header"
+          className="ar-header"
           style={{
-            padding: "0 24px",
+            padding: "0 20px",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
+            gap: 16,
           }}
         >
-          <Text
-            strong
-            style={{
-              fontSize: 14,
-              letterSpacing: "0.05em",
-              textTransform: "uppercase",
-              color: "#e8eef8",
-              fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
-            }}
-          >
-            Обработка бюллетеней ФСТЭК / НКЦКИ и IOC
-          </Text>
+          <Space size={14}>
+            <Tooltip title={collapsed ? "Развернуть меню" : "Свернуть меню"}>
+              <Button
+                type="text"
+                className="ar-collapse-btn"
+                icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+                onClick={toggleCollapsed}
+              />
+            </Tooltip>
+            <Text
+              strong
+              style={{
+                fontSize: 13.5,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                color: "#f0f2f5",
+                fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+              }}
+            >
+              Обработка бюллетеней ФСТЭК / НКЦКИ и IOC
+            </Text>
+          </Space>
 
           <Space size="middle">
             <Tag
               icon={<UserOutlined />}
               style={{
-                background: "rgba(252, 238, 10, 0.12)",
-                borderColor: "#fcee0a",
-                color: "#fcee0a",
+                background: "rgba(230, 25, 46, 0.14)",
+                borderColor: "#e6192e",
+                color: "#f0f2f5",
                 marginRight: 0,
                 textTransform: "uppercase",
+                letterSpacing: "0.05em",
               }}
             >
               {username}
@@ -206,7 +262,7 @@ export default function App() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "#07080d",
+          background: "#070709",
         }}
       >
         <Spin size="large" tip="Загрузка..." />
@@ -220,27 +276,27 @@ export default function App() {
       theme={{
         algorithm: theme.darkAlgorithm,
         token: {
-          colorPrimary: "#fcee0a",
-          colorInfo: "#00f0ff",
-          colorError: "#ff003c",
-          colorWarning: "#ffb800",
-          colorSuccess: "#00ff9f",
-          colorBgBase: "#07080d",
-          colorBgLayout: "#07080d",
-          colorBgContainer: "#0d101b",
-          colorBgElevated: "#131829",
-          colorBorder: "#1e2942",
-          colorBorderSecondary: "#1e2942",
-          colorText: "#e8eef8",
-          colorTextSecondary: "#7c8db5",
+          colorPrimary: "#e6192e",
+          colorInfo: "#e6192e",
+          colorError: "#ff2a3c",
+          colorWarning: "#d97706",
+          colorSuccess: "#10b981",
+          colorBgBase: "#070709",
+          colorBgLayout: "#070709",
+          colorBgContainer: "#0e0f13",
+          colorBgElevated: "#16181f",
+          colorBorder: "#262832",
+          colorBorderSecondary: "#262832",
+          colorText: "#f0f2f5",
+          colorTextSecondary: "#8a8f9e",
           borderRadius: 0,
         },
         components: {
           Button: {
-            primaryColor: "#050608",
+            primaryColor: "#ffffff",
           },
           Pagination: {
-            itemActiveBg: "#131829",
+            itemActiveBg: "#16181f",
           },
         },
       }}

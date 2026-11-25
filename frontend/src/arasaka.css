@@ -1,0 +1,373 @@
+:root {
+  --ar-red: #e6192e;
+  --ar-red-bright: #ff2a3c;
+  --ar-red-soft: rgba(230, 25, 46, 0.14);
+  --ar-bg: #070709;
+  --ar-surface: #0e0f13;
+  --ar-elevated: #16181f;
+  --ar-border: #262832;
+  --ar-text: #f0f2f5;
+  --ar-muted: #8a8f9e;
+  --ar-success: #10b981;
+}
+
+body {
+  background-color: var(--ar-bg);
+  color: var(--ar-text);
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.022) 1px, transparent 1px);
+  background-size: 36px 36px;
+}
+
+.ant-layout {
+  background: transparent !important;
+}
+
+/* Боковое меню Arasaka (сворачиваемое) */
+.ar-sider {
+  background: linear-gradient(180deg, #0c0d11 0%, #070709 100%) !important;
+  border-right: 1px solid rgba(230, 25, 46, 0.35) !important;
+  box-shadow: 4px 0 28px rgba(0, 0, 0, 0.75);
+}
+
+.ar-brand {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 18px;
+  border-bottom: 1px solid rgba(230, 25, 46, 0.32);
+  background: linear-gradient(90deg, rgba(230, 25, 46, 0.14) 0%, transparent 100%);
+  overflow: hidden;
+  transition: padding 0.2s ease, justify-content 0.2s ease;
+}
+
+.ar-sider.ant-layout-sider-collapsed .ar-brand {
+  padding: 0;
+  justify-content: center;
+}
+
+.ar-brand-fallback {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--ar-red);
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%);
+  box-shadow: 0 0 14px rgba(230, 25, 46, 0.4);
+}
+
+.ar-sider .ant-menu-dark {
+  background: transparent !important;
+}
+
+.ar-sider .ant-menu-item {
+  border-radius: 0 !important;
+  margin: 4px 10px !important;
+  width: calc(100% - 20px) !important;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ar-muted) !important;
+  border-left: 3px solid transparent;
+  transition: all 0.15s ease;
+}
+
+.ar-sider .ant-menu-item:hover {
+  color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+  border-left-color: rgba(230, 25, 46, 0.65);
+}
+
+.ar-sider .ant-menu-item-selected {
+  color: #ffffff !important;
+  background: var(--ar-red-soft) !important;
+  border-left: 3px solid var(--ar-red) !important;
+  box-shadow: inset 0 0 18px rgba(230, 25, 46, 0.12);
+}
+
+.ar-sider .ant-menu-item-selected .anticon {
+  color: var(--ar-red-bright) !important;
+}
+
+/* Центрирование иконок при свёрнутом меню */
+.ar-sider .ant-menu-inline-collapsed > .ant-menu-item {
+  margin: 6px 8px !important;
+  width: calc(100% - 16px) !important;
+  padding: 0 !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+}
+
+.ar-sider .ant-menu-inline-collapsed > .ant-menu-item .anticon {
+  font-size: 17px !important;
+  line-height: 1;
+}
+
+.ar-sider .ant-menu-inline-collapsed > .ant-menu-item .ant-menu-title-content {
+  display: none !important;
+}
+
+/* Верхняя панель HUD */
+.ar-header {
+  background: rgba(14, 15, 19, 0.94) !important;
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--ar-border) !important;
+  box-shadow: 0 2px 20px rgba(0, 0, 0, 0.55);
+  position: relative;
+}
+
+.ar-header::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -1px;
+  width: 180px;
+  height: 2px;
+  background: var(--ar-red);
+  box-shadow: 0 0 12px rgba(230, 25, 46, 0.75);
+}
+
+.ar-collapse-btn {
+  color: var(--ar-muted) !important;
+  border: 1px solid var(--ar-border) !important;
+  background: rgba(255, 255, 255, 0.02) !important;
+  width: 34px !important;
+  height: 34px !important;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+}
+
+.ar-collapse-btn:hover {
+  color: #ffffff !important;
+  border-color: var(--ar-red) !important;
+  background: var(--ar-red-soft) !important;
+}
+
+/* Карточки в корпоративном стиле Arasaka */
+.ant-card {
+  background: var(--ar-surface) !important;
+  border: 1px solid var(--ar-border) !important;
+  border-top: 2px solid var(--ar-red) !important;
+  border-radius: 0 !important;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
+}
+
+.ant-card-head {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07) !important;
+  background: rgba(255, 255, 255, 0.015) !important;
+}
+
+.ant-card-head-title {
+  color: var(--ar-text) !important;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+}
+
+/* Вложенные карточки (карточки писем на аналитике) */
+.ant-card .ant-card {
+  background: var(--ar-elevated) !important;
+  border-top: 2px solid var(--ar-border) !important;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%);
+  box-shadow: none;
+}
+
+.ant-card .ant-card .ant-card-head-title {
+  color: var(--ar-text) !important;
+  text-transform: none;
+  letter-spacing: 0.01em;
+}
+
+/* Кнопки */
+.ant-btn {
+  border-radius: 0 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.ant-btn-primary {
+  background: var(--ar-red) !important;
+  border-color: var(--ar-red) !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%);
+  box-shadow: 0 0 16px rgba(230, 25, 46, 0.28);
+}
+
+.ant-btn-primary:hover,
+.ant-btn-primary:focus {
+  background: var(--ar-red-bright) !important;
+  border-color: var(--ar-red-bright) !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 20px rgba(255, 42, 60, 0.48);
+}
+
+.ant-btn-default {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border-color: #323542 !important;
+  color: var(--ar-text) !important;
+}
+
+.ant-btn-default:hover {
+  border-color: var(--ar-red) !important;
+  color: #ffffff !important;
+  background: var(--ar-red-soft) !important;
+}
+
+.ant-btn-dangerous {
+  color: var(--ar-red-bright) !important;
+}
+
+/* Таблицы */
+.ant-table {
+  background: transparent !important;
+}
+
+.ant-table-thead > tr > th {
+  background: #121319 !important;
+  color: #cfd4df !important;
+  border-bottom: 1px solid rgba(230, 25, 46, 0.5) !important;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  font-size: 11px;
+  font-weight: 700 !important;
+}
+
+.ant-table-tbody > tr > td {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+}
+
+.ant-table-tbody > tr:hover > td {
+  background: rgba(230, 25, 46, 0.06) !important;
+}
+
+/* Инпуты, селекты, сегментед и чекбоксы */
+.ant-input,
+.ant-input-affix-wrapper,
+.ant-select-selector {
+  border-radius: 0 !important;
+  background: #090a0d !important;
+  border-color: #2c2f3b !important;
+}
+
+.ant-input:focus,
+.ant-input-affix-wrapper-focused,
+.ant-select-focused .ant-select-selector {
+  border-color: var(--ar-red) !important;
+  box-shadow: 0 0 0 2px rgba(230, 25, 46, 0.2) !important;
+}
+
+.ant-select-dropdown {
+  background: #101117 !important;
+  border: 1px solid rgba(230, 25, 46, 0.4) !important;
+  border-radius: 0 !important;
+}
+
+.ant-segmented {
+  background: #090a0d !important;
+  border: 1px solid var(--ar-border);
+  border-radius: 0 !important;
+}
+
+.ant-segmented-item-selected {
+  background: var(--ar-red) !important;
+  color: #ffffff !important;
+  border-radius: 0 !important;
+}
+
+.ant-checkbox-inner {
+  border-radius: 0 !important;
+  border-color: #4b4f5e !important;
+}
+
+.ant-checkbox-checked .ant-checkbox-inner {
+  background-color: var(--ar-red) !important;
+  border-color: var(--ar-red) !important;
+}
+
+.ant-checkbox-checked .ant-checkbox-inner::after {
+  border-color: #ffffff !important;
+}
+
+/* Зона загрузки файлов */
+.ant-upload-wrapper .ant-upload-drag {
+  background: rgba(255, 255, 255, 0.015) !important;
+  border: 1px dashed rgba(230, 25, 46, 0.45) !important;
+  border-radius: 0 !important;
+  transition: all 0.2s ease;
+}
+
+.ant-upload-wrapper .ant-upload-drag:hover {
+  border-color: var(--ar-red-bright) !important;
+  background: rgba(230, 25, 46, 0.06) !important;
+  box-shadow: inset 0 0 24px rgba(230, 25, 46, 0.08);
+}
+
+.ant-upload-drag-icon .anticon {
+  color: var(--ar-red) !important;
+}
+
+/* Теги, прогресс и модалки */
+.ant-tag {
+  border-radius: 0 !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+
+.ant-progress-bg,
+.ant-progress-inner {
+  border-radius: 0 !important;
+}
+
+.ant-modal-content {
+  background: var(--ar-surface) !important;
+  border: 1px solid var(--ar-border) !important;
+  border-top: 3px solid var(--ar-red) !important;
+  border-radius: 0 !important;
+}
+
+.ant-modal-header {
+  background: transparent !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+.ant-modal-title {
+  color: var(--ar-text) !important;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* Тёмный скроллбар */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #070709;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #272933;
+  border: 1px solid rgba(230, 25, 46, 0.25);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--ar-red);
+}
